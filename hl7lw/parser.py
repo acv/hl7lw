@@ -68,7 +68,7 @@ class Hl7Parser:
         if isinstance(segment, bytes):
             segment = segment.decode(encoding=encoding)
         if len(segment) < 4:
-            raise InvalidSegment("Segment is too short to be valid: [{segment}]")
+            raise InvalidSegment(f"Segment is too short to be valid: [{segment}]")
         if segment.startswith('MSH'):
             if not allow_msh:
                 raise InvalidSegment("MSH segment found when not expected.")
@@ -85,7 +85,7 @@ class Hl7Parser:
         field_separator = segment[3]  # Local var in case rest of MSH invalid
         _, control_characters, _ = segment.split(field_separator, maxsplit=2)
         if len(control_characters) != 4:
-            raise InvalidSegment("Invalid MSH-2, it must be exactly 4 chars [{segment[1]}]")
+            raise InvalidSegment(f"Invalid MSH-2, it must be exactly 4 chars [{segment[1]}]")
         self.field_separator = field_separator
         self.component_separator = control_characters[0]
         self.repetition_separator = control_characters[1]
