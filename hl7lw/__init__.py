@@ -71,7 +71,7 @@ class Hl7Message:
     
     def get_segment(self, segment: str,
                        strict: bool = True) -> Optional[Hl7Segment]:
-        segments = self.select_segments(segment)
+        segments = self.get_segments(segment)
         if len(segments) > 0:
             if strict and len(segments) > 1:
                 raise MultipleSegmentsFound(f"Found multiple {segments} segments " + \
@@ -155,11 +155,12 @@ class Hl7Parser:
             if not self.ignore_msh_values_for_parsing:
                 self.sniff_out_grammar_from_msh_definition(segment)
         name, *fields = segment.split(self.field_separator)
-        if fields[0] == 'MSH':
+        if name == 'MSH':
             fields.insert(0, self.field_separator)  # Quirk of the spec, MSH-1 is special
         hl7_seg = Hl7Segment(parser=self)
         hl7_seg.name = name
         hl7_seg.fields = fields
+        return hl7_seg
     
     def sniff_out_grammar_from_msh_definition(self, segment: str) -> None:
         field_separator = segment[3]  # Local var in case rest of MSH invalid
