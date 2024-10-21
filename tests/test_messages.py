@@ -30,4 +30,3 @@ def test_segments(trivial_a08):
 
     msh = m.get_segment('MSH')
     assert msh[1] == '|', "Special handling of MSH-1"
-    
