@@ -25,6 +25,14 @@ class Hl7Component:
             return Hl7Subcomponent(self.parser, None)  # Create an implicit empty arborescence
         key -= 1
         return self.components[key]
+
+    def __setitem__(self, key: int, value: str) -> None:
+        if key < 1:
+            raise InvalidHl7FieldReference(f"Component index must be 1 indexed and positive not [{key}]")
+        while key > len(self.components):
+            self.components.append(Hl7Subcomponent(self.parser, None))
+        key -= 1
+        self.components[key] = value
         
     def __str__(self) -> str:
         return self.parser.component_separator.join([str(k) for k in self.components])
@@ -50,6 +58,14 @@ class Hl7Subcomponent:
             return ''  # Create an implicit empty arborescence
         key -= 1
         return self.subcomponents[key]
+
+    def __setitem__(self, key: int, value: str) -> None:
+        if key < 1:
+            raise InvalidHl7FieldReference(f"Subcomponent index must be 1 indexed and positive not [{key}]")
+        while key > len(self.subcomponents):
+            self.subcomponents.append('')
+        key -= 1
+        self.subcomponents[key] = value
         
     def __str__(self) -> str:
         return self.parser.subcomponent_separator.join(self.subcomponents)
@@ -75,6 +91,52 @@ class Hl7Field:
             return Hl7Component(self.parser, None)  # Create an implicit empty arborescence
         key -= 1
         return self.repetitions[key]
+    
+    def __setitem__(self, key: int, value: str) -> None:
+        if key < 1:
+            raise InvalidHl7FieldReference(f"Repetition index must be 1 indexed and positive not [{key}]")
+        while key > len(self.repetitions):
+            self.repetitions.append(Hl7Component(self.parser, None))
+        key -= 1
+        self.repetitions[key] = value
+
+    @classmethod
+    def set_by_reference(klass,
+                         source: Union[Hl7Message, Hl7Segment],
+                         reference: Union[str, Hl7Reference],
+                         value: str) -> None:
+        if isinstance(reference, str):
+            reference = Hl7Reference(reference)
+        if isinstance(source, Hl7Message):
+            segment = source.get_segment(reference.segment_name, strict=True)
+        else:
+            segment = source
+        if segment is None:
+            raise SegmentNotFound(f"Could not find segment [{reference.segment_name}]")
+        field = klass(segment.parser, segment[reference.field])
+        if reference.repetition is None:
+            if reference.component is None:
+                # Special case. If assignment to say PID-4 directly is made, ignore repetitions. 
+                segment[reference.field] = value
+                return
+            rep = 1
+        else:
+            rep = reference.repetition
+        while rep > len(field.repetitions):
+            field.repetitions.append(Hl7Component(field.parser, None))
+        if reference.component is None:
+            # trivial
+            field[rep] = Hl7Component(field.parser, None)  # Instentiate the arborescence
+            field[rep][1][1] = value  # Attach to leaf node
+        else:
+            while reference.component > len(field[rep].components):
+                field[rep].components.append(Hl7Subcomponent(field.parser, None))
+            if reference.subcomponent is None:
+                field[rep][reference.component] = Hl7Subcomponent(field.parser, None)
+                field[rep][reference.component][1] = value
+            else:
+                field[rep][reference.component][reference.subcomponent] = value
+        segment[reference.field] = str(field)
 
     @classmethod
     def get_by_reference(klass,
@@ -235,6 +297,9 @@ class Hl7Message:
     
     def __getitem__(self, key: str) -> str:
         return Hl7Field.get_by_reference(self, key)
+    
+    def __setitem__(self, key: str, value: str) -> None:
+        Hl7Field.set_by_reference(self, key, value)
 
 
 class Hl7Parser:

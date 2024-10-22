@@ -40,4 +40,15 @@ def test_get_by_reference(trivial_a08: bytes):
         m["OBX-5"]
     assert m["PID-3"] == 'E3843677^^^EPIC^MRN~900070078^^^EPI^MR&1.2.3.4'
     assert m["PID-100"] == ''
-        
+    m["PID-4[3].2.8"] = 'beep'
+    assert m["PID-4[3].2.8"] == 'beep'
+    assert m["PID-4"] == "~~^&&&&&&&beep"
+    m["PID-4.1"] = "test"
+    m["PID-4[2]"] = "red"
+    assert m["PID-4"] == "test~red~^&&&&&&&beep"
+    m["PID-4"] = "test2"
+    assert m["PID-4"] == "test2"
+    m["PID-4[5]"] = "rep"
+    assert m["PID-4"] == "test2~~~~rep"
+    m["PID-4[3].6"] = "random"
+    assert m["PID-4"] == "test2~~^^^^^random~~rep"
