@@ -1,5 +1,5 @@
 import pytest
-from hl7lw import Hl7Message, Hl7Parser, Hl7Segment, InvalidSegmentIndex
+from hl7lw import Hl7Message, Hl7Parser, Hl7Segment, InvalidSegmentIndex, SegmentNotFound
 
 
 def test_a08_parsing(trivial_a08):
@@ -19,11 +19,8 @@ def test_segments(trivial_a08):
     assert len(pid.fields) == 32, "Sample message should have 32 fields."
 
     assert pid[7] == '20181128100700'
-    try:
+    with pytest.raises(InvalidSegmentIndex):
         pid[0]
-        pytest.fail("Expected an InvalidSegmentIndex exception to be thrown.")
-    except InvalidSegmentIndex as e:
-        assert isinstance(e, InvalidSegmentIndex)
     pid[1] = 'Nebucadnezar'
     assert pid.fields[0] == 'Nebucadnezar', "Assignment test, direct access"
     assert pid[1] == 'Nebucadnezar', "Assignment test"
@@ -38,3 +35,6 @@ def test_get_by_reference(trivial_a08):
     assert m["PID-3[2].4"] == 'EPI'
     assert m["PID-3[2].5.1"] == 'MR'
     assert m["PID-3[2].5"] == 'MR&1.2.3.4'
+    with pytest.raises(SegmentNotFound):
+        m["OBX-5"]
+        

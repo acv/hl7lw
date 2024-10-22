@@ -83,9 +83,11 @@ class Hl7Field:
         if isinstance(reference, str):
             reference = Hl7Reference(reference)
         if isinstance(source, Hl7Message):
-            segment = source.get_segment(reference.segment_name)
+            segment = source.get_segment(reference.segment_name, strict=True)
         else:
             segment = source
+        if segment is None:
+            raise SegmentNotFound(f"Could not find segment [{reference.segment_name}]")
         field = klass(segment.parser, segment[reference.field])
         if reference.repetition is None:
             # It's natural to ignore repetitions in the normal case
@@ -216,7 +218,7 @@ class Hl7Message:
         self.segments = tmp_msg.segments
     
     def get_segment(self, segment: str,
-                       strict: bool = True) -> Optional[Hl7Segment]:
+                    strict: bool = True) -> Optional[Hl7Segment]:
         segments = self.get_segments(segment)
         if len(segments) > 0:
             if strict and len(segments) > 1:

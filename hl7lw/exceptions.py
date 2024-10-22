@@ -20,3 +20,7 @@ class MultipleSegmentsFound(Hl7Exception):
 
 class InvalidHl7FieldReference(Hl7Exception):
     pass
+
+
+class SegmentNotFound(Hl7Exception):
+    pass
