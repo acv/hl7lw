@@ -38,4 +38,6 @@ def test_get_by_reference(trivial_a08: bytes):
     assert m["PID-3[2].5"] == 'MR&1.2.3.4'
     with pytest.raises(SegmentNotFound):
         m["OBX-5"]
+    assert m["PID-3"] == 'E3843677^^^EPIC^MRN~900070078^^^EPI^MR&1.2.3.4'
+    assert m["PID-100"] == ''
         

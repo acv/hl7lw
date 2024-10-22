@@ -191,6 +191,8 @@ class Hl7Segment:
         if key == 0:
             raise InvalidSegmentIndex("Segments do not have a 0 index.")
         elif key > 0:
+            if key > len(self.fields):
+                return ""
             key -= 1  # 0 index array but 1 index access
         return self.fields[key]
     
