@@ -1,15 +1,15 @@
 import pytest
-from hl7lw import Hl7Message, Hl7Parser, Hl7Segment, InvalidSegmentIndex, SegmentNotFound
+from src.hl7lw import Hl7Message, Hl7Parser, Hl7Segment, InvalidSegmentIndex, SegmentNotFound
 
 
-def test_a08_parsing(trivial_a08):
+def test_a08_parsing(trivial_a08: bytes):
     p = Hl7Parser()
     m = p.parse_message(message=trivial_a08)
     assert isinstance(m, Hl7Message)
     assert len(m.segments) == 3
 
 
-def test_segments(trivial_a08):
+def test_segments(trivial_a08: bytes):
     p = Hl7Parser()
     m = p.parse_message(message=trivial_a08)
     pid = m.get_segment('PID')
@@ -28,7 +28,8 @@ def test_segments(trivial_a08):
     msh = m.get_segment('MSH')
     assert msh[1] == '|', "Special handling of MSH-1"
 
-def test_get_by_reference(trivial_a08):
+
+def test_get_by_reference(trivial_a08: bytes):
     p = Hl7Parser()
     m = p.parse_message(message=trivial_a08)
 
