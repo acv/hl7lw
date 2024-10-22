@@ -29,7 +29,7 @@ def test_segments(trivial_a08: bytes):
     assert msh[1] == '|', "Special handling of MSH-1"
 
 
-def test_get_by_reference(trivial_a08: bytes):
+def test_by_reference(trivial_a08: bytes):
     p = Hl7Parser()
     m = p.parse_message(message=trivial_a08)
 
