@@ -1,11 +1,175 @@
 from __future__ import annotations
 from typing import Union, Optional
+import re
 
 from .exceptions import *
 
 
+class Hl7Component:
+    def __init__(self, parser: Hl7Parser, content: Optional[str] = None) -> None:
+        self.parser = parser
+        self.components = []
+        self.parse(content)
+    
+    def parse(self, content: Optional[str]) -> None:
+        if content is None:
+            self.components = [Hl7Subcomponent(self.parser, content)]
+        else:
+            self.components = [Hl7Subcomponent(self.parser, k) for k in 
+                               content.split(self.parser.component_separator)]
+    
+    def __getitem__(self, key: int) -> Hl7Subcomponent:
+        if key < 1:
+            raise InvalidHl7FieldReference(f"Component index must be 1 indexed and positive not [{key}]")
+        if key > len(self.components):
+            return Hl7Subcomponent(self.parser, None)  # Create an implicit empty arborescence
+        key -= 1
+        return self.components[key]
+        
+    def __str__(self) -> str:
+        return self.parser.component_separator.join([str(k) for k in self.components])
+
+
+class Hl7Subcomponent:
+    def __init__(self, parser: Hl7Parser, content: Optional[str] = None) -> None:
+        self.parser = parser
+        self.subcomponents = []
+        self.parse(content)
+    
+    def parse(self, content: Optional[str]) -> None:
+        if content is None:
+            self.subcomponents = [""]
+        else:
+            self.subcomponents = [k for k in 
+                                  content.split(self.parser.subcomponent_separator)]
+    
+    def __getitem__(self, key: int) -> str:
+        if key < 1:
+            raise InvalidHl7FieldReference(f"Subcomponent index must be 1 indexed and positive not [{key}]")
+        if key > len(self.subcomponents):
+            return ''  # Create an implicit empty arborescence
+        key -= 1
+        return self.subcomponents[key]
+        
+    def __str__(self) -> str:
+        return self.parser.subcomponent_separator.join(self.subcomponents)
+
+
 class Hl7Field:
-    pass
+    def __init__(self, parser: Hl7Parser, content: Optional[str] = None) -> None:
+        self.parser = parser
+        self.repetitions = []
+        self.parse(content)
+    
+    def parse(self, content: Optional[str]) -> None:
+        if content is None:
+            self.repetitions = [Hl7Component(self.parser, content)]
+        else:
+            self.repetitions = [Hl7Component(self.parser, k) for k in 
+                                content.split(self.parser.repetition_separator)]
+    
+    def __getitem__(self, key: int) -> Hl7Component:
+        if key < 1:
+            raise InvalidHl7FieldReference(f"Repetition index must be 1 indexed and positive not [{key}]")
+        if key > len(self.repetitions):
+            return Hl7Component(self.parser, None)  # Create an implicit empty arborescence
+        key -= 1
+        return self.repetitions[key]
+
+    @classmethod
+    def get_by_reference(klass,
+                         source: Union[Hl7Message, Hl7Segment], 
+                         reference: Union[str, Hl7Reference]) -> str:
+        if isinstance(reference, str):
+            reference = Hl7Reference(reference)
+        if isinstance(source, Hl7Message):
+            segment = source.get_segment(reference.segment_name)
+        else:
+            segment = source
+        field = klass(segment.parser, segment[reference.field])
+        if reference.repetition is None:
+            # It's natural to ignore repetitions in the normal case
+            # Might not be strictly correct, but it feels natural.
+            if reference.component is None:
+                return str(field)
+            else:
+                # First repetition
+                component = field[1][reference.component]
+                if reference.subcomponent is None:
+                    return str(component)
+                else:
+                    return str(component[reference.subcomponent])
+        else:
+            # explicit repetition land.
+            rep = field[reference.repetition]
+            if reference.component is None:
+                return str(rep)
+            else:
+                if reference.subcomponent is None:
+                    return str(rep[reference.component])
+                else:
+                    return str(rep[reference.component][reference.subcomponent])
+    
+    def __str__(self) -> str:
+        return self.parser.repetition_separator.join([str(k) for k in self.repetitions])
+
+
+SEGMENT_ID_RE = re.compile(r'^[A-Z][A-Z0-9]{2}$')
+
+
+class Hl7Reference:
+    def __init__(self, definition: Optional[str] = None) -> None:
+        self.segment_name: Optional[str] = None
+        self.field: Optional[int] = None
+        self.repetition: Optional[int] = None
+        self.component: Optional[int] = None
+        self.subcomponent: Optional[int] = None
+        if definition is not None:
+            self.parse_definition(definition)
+    
+    def parse_definition(self, definition: str) -> None:
+        try:
+            segment_name, rest_of_def = definition.split('-', maxsplit=1)
+        except ValueError:
+            raise InvalidHl7FieldReference("Need at least a segment id and a field index like MSH-9")
+        if not SEGMENT_ID_RE.match(segment_name):
+            raise InvalidHl7FieldReference(f"Invalis segment id [{segment_name}]")
+        field_part, *leftover = rest_of_def.split('.')
+        if len(leftover) > 2:
+            raise InvalidHl7FieldReference("Too many dotted components to the field reference")
+        if '[' in field_part:
+            field_str, rep_part = field_part.split('[', maxsplit=1)
+            rep_str = rep_part.split(']', maxsplit=1)[0]
+            try:
+                rep = int(rep_str)
+            except ValueError:
+                raise InvalidHl7FieldReference(f"Invalid field index [{rep_str}]")
+        else:
+            rep = None
+            field_str = field_part
+        try:
+            field = int(field_str)
+        except ValueError:
+            raise InvalidHl7FieldReference(f"Invalid field index [{field_str}]")
+        if len(leftover) > 0:
+            try:
+                component = int(leftover[0])
+            except ValueError:
+                raise InvalidHl7FieldReference(f"Invalid component index [{leftover[0]}]")
+        else:
+            component = None
+        if len(leftover) > 1:
+            try:
+                subcomponent = int(leftover[1])
+            except ValueError:
+                raise InvalidHl7FieldReference(f"Invalid subcomponent index [{leftover[1]}]")
+        else:
+            subcomponent = None
+        self.segment_name = segment_name
+        self.field = field
+        self.repetition = rep
+        self.component = component
+        self.subcomponent = subcomponent
 
     
 class Hl7Segment:
@@ -64,6 +228,9 @@ class Hl7Message:
     
     def get_segments(self, segment: str) -> list[Hl7Segment]:
         return [s for s in self.segments if s.name == segment]
+    
+    def __getitem__(self, key: str) -> str:
+        return Hl7Field.get_by_reference(self, key)
 
 
 class Hl7Parser:
@@ -137,6 +304,9 @@ class Hl7Parser:
             if not self.ignore_msh_values_for_parsing:
                 self.sniff_out_grammar_from_msh_definition(segment)
         name, *fields = segment.split(self.field_separator)
+        
+        if not SEGMENT_ID_RE.match(name):
+            raise InvalidSegment(f"Invalis segment name [{name}]")
         if name == 'MSH':
             fields.insert(0, self.field_separator)  # Quirk of the spec, MSH-1 is special
         hl7_seg = Hl7Segment(parser=self)

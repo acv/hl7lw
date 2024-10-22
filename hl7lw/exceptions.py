@@ -16,3 +16,7 @@ class InvalidSegmentIndex(Hl7Exception):
 
 class MultipleSegmentsFound(Hl7Exception):
     pass
+
+
+class InvalidHl7FieldReference(Hl7Exception):
+    pass

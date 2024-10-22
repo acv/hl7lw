@@ -30,3 +30,11 @@ def test_segments(trivial_a08):
 
     msh = m.get_segment('MSH')
     assert msh[1] == '|', "Special handling of MSH-1"
+
+def test_get_by_reference(trivial_a08):
+    p = Hl7Parser()
+    m = p.parse_message(message=trivial_a08)
+
+    assert m["PID-3[2].4"] == 'EPI'
+    assert m["PID-3[2].5.1"] == 'MR'
+    assert m["PID-3[2].5"] == 'MR&1.2.3.4'
