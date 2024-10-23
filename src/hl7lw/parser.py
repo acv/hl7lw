@@ -348,9 +348,9 @@ class Hl7Parser:
             try:
                 if first_seg or self.allow_multiple_msh:
                     first_seg = False
-                    seg_obj = self.parse_segment(segment)
+                    seg_obj = self.parse_segment(segment, encoding=encoding)
                 else:
-                    seg_obj = self.parse_segment(segment, allow_msh=False)
+                    seg_obj = self.parse_segment(segment, allow_msh=False, encoding=encoding)
                 hl7_msg.segments.append(seg_obj)
             except InvalidSegment as e:
                 if self.ignore_invalid_segments:
