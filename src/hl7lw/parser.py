@@ -250,8 +250,8 @@ class Hl7Segment:
         self.fields = tmp_seg.fields
     
     def __getitem__(self, key: int) -> str:
-        if key == 0:
-            raise InvalidSegmentIndex("Segments do not have a 0 index.")
+        if key < 1:
+            raise InvalidSegmentIndex("Segments do not have a 0 or negative index.")
         elif key > 0:
             if key > len(self.fields):
                 return ""
@@ -259,8 +259,8 @@ class Hl7Segment:
         return self.fields[key]
     
     def __setitem__(self, key: int, value: Union[str, Hl7Field]) -> str:
-        if key == 0:
-            raise InvalidSegmentIndex("Segments do not have a 0 index.")
+        if key < 1:
+            raise InvalidSegmentIndex("Segments do not have a 0 or negative index.")
         elif key > 0:
             key -= 1  # 0 index array but 1 index access
         self.fields[key] = str(value)
@@ -375,7 +375,7 @@ class Hl7Parser:
         name, *fields = segment.split(self.field_separator)
         
         if not SEGMENT_ID_RE.match(name):
-            raise InvalidSegment(f"Invalis segment name [{name}]")
+            raise InvalidSegment(f"Invalid segment name [{name}]")
         if name == 'MSH':
             fields.insert(0, self.field_separator)  # Quirk of the spec, MSH-1 is special
         hl7_seg = Hl7Segment(parser=self)
@@ -403,7 +403,7 @@ class Hl7Parser:
     
     def format_message(self,
                        message: Hl7Message, 
-                       encoding: Optional[str]) -> Union[str, bytes]:
+                       encoding: Optional[str] = None) -> Union[str, bytes]:
         formatted_segments = []
         for segment in message.segments:
             formatted_segments.append(self.format_segment(segment))
