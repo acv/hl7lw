@@ -1,1 +1,5 @@
+# For ease of dev, we use CRLF line ending as segment terminator on the HL7
+# sample message. I (acv) code on windows but the github test runner run on
+# Linux and checkout was converting CRLF to LF and thus segment endings got
+# nuked. This will force CRLF so the CRs get retained on Linux test runners.
 *.hl7 text eol=crlf
