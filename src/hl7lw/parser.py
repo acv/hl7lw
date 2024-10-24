@@ -314,12 +314,12 @@ class Hl7Parser:
         """
         
         # Grammar defaults
-        self.segment_separator = '\r'
-        self.field_separator = '|'
-        self.component_separator = '^'
-        self.repetition_separator = '~'
-        self.escape_character = '\\'
-        self.subcomponent_separator = '&'
+        self.segment_separator: str = '\r'
+        self.field_separator: str = '|'
+        self.component_separator: str = '^'
+        self.repetition_separator: str = '~'
+        self.escape_character: str = '\\'
+        self.subcomponent_separator: str = '&'
 
         # Parsing options/
         self.newline_as_terminator = newline_as_terminator
