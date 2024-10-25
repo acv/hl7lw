@@ -18,4 +18,7 @@ if m["MSH-9.1"] == "ORU":
     m["ORC-1"] = "RP"
 
 message_bytes = p.format_message(m)
+
+report = "\n".join([obx[5] for obx in m.get_segments('OBX') if obx[2] in ('TX', 'FT', 'ST')])
+
 ```
