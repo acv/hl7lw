@@ -263,6 +263,8 @@ class Hl7Segment:
             raise InvalidSegmentIndex("Segments do not have a 0 or negative index.")
         elif key > 0:
             key -= 1  # 0 index array but 1 index access
+        while len(self.fields) <= key:
+            self.fields.append('')
         self.fields[key] = str(value)
         return self.fields[key]
 

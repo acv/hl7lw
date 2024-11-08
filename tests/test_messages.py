@@ -123,3 +123,14 @@ def test_invalid_segment(trivial_a08: bytes) -> None:
     p2 = Hl7Parser(ignore_invalid_segments=True)
     m = p2.parse_message(message=bad_a08)
     assert p2.format_message(m, encoding="ascii") == trivial_a08
+
+def test_add_segment(trivial_a08: bytes) -> None:
+    p = Hl7Parser()
+    m = p.parse_message(trivial_a08)
+    pv1 = Hl7Segment(p)
+    pv1.parse('PV1|')
+    m.segments.append(pv1)
+    m['PV1-5'] = 'test'
+    assert m['PV1-5'] == 'test', "Failed to allocate missing fields"
+    m['PV1-9[3].2'] = 'blue'
+    assert m['PV1-9'] == '~~^blue'
