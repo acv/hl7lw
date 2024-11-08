@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "hl7lw"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Alexandre Carmel-Veilleux", email="acv@miniguru.ca" },
 ]
 description = "Super light weight Hl7 2.x parser"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: Apache Software License",
