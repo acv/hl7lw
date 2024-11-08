@@ -208,6 +208,8 @@ class Hl7Reference:
                 rep = int(rep_str)
             except ValueError:
                 raise InvalidHl7FieldReference(f"Invalid field index [{rep_str}]")
+            if rep < 1:
+                raise InvalidHl7FieldReference(f"Invalid field index [{rep}]")
         else:
             rep = None
             field_str = field_part
@@ -215,11 +217,15 @@ class Hl7Reference:
             field = int(field_str)
         except ValueError:
             raise InvalidHl7FieldReference(f"Invalid field index [{field_str}]")
+        if field < 1:
+            raise InvalidHl7FieldReference(f"Invalid field index [{field}]")
         if len(leftover) > 0:
             try:
                 component = int(leftover[0])
             except ValueError:
                 raise InvalidHl7FieldReference(f"Invalid component index [{leftover[0]}]")
+            if component < 1:
+                raise InvalidHl7FieldReference(f"Invalid component index [{component}]")
         else:
             component = None
         if len(leftover) > 1:
@@ -227,6 +233,8 @@ class Hl7Reference:
                 subcomponent = int(leftover[1])
             except ValueError:
                 raise InvalidHl7FieldReference(f"Invalid subcomponent index [{leftover[1]}]")
+            if subcomponent < 1:
+                raise InvalidHl7FieldReference(f"Invalid component index [{subcomponent}]")
         else:
             subcomponent = None
         self.segment_name = segment_name
@@ -237,7 +245,7 @@ class Hl7Reference:
 
     
 class Hl7Segment:
-    def __init__(self, parser: Optional[Hl7Parser]) -> None:
+    def __init__(self, parser: Optional[Hl7Parser] = None) -> None:
         self.parser = parser
         if self.parser is None:
             self.parser = Hl7Parser()
@@ -302,6 +310,9 @@ class Hl7Message:
     
     def __setitem__(self, key: str, value: str) -> None:
         Hl7Field.set_by_reference(self, key, value)
+    
+    def __str__(self) -> str:
+        return self.parser.format_message(self)
 
 
 class Hl7Parser:

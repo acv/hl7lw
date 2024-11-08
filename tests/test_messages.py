@@ -1,5 +1,6 @@
 import pytest
 from src.hl7lw import Hl7Message, Hl7Parser, Hl7Segment
+from src.hl7lw.parser import Hl7Reference
 from src.hl7lw.exceptions import *
 
 
@@ -80,9 +81,9 @@ def test_bad_references(trivial_a08: bytes) -> None:
         m["PID"]
     with pytest.raises(InvalidHl7FieldReference):
         m["PID"] = "test"
-    with pytest.raises(InvalidSegmentIndex):
+    with pytest.raises(InvalidHl7FieldReference):
         m["PID-0"]
-    with pytest.raises(InvalidSegmentIndex):
+    with pytest.raises(InvalidHl7FieldReference):
         m["PID-0"] = "test"
     with pytest.raises(InvalidHl7FieldReference):
         m["PID-1[0]"]
@@ -92,10 +93,18 @@ def test_bad_references(trivial_a08: bytes) -> None:
         m["PID-1[-1]"]
     with pytest.raises(InvalidHl7FieldReference):
         m["PID-1[-1]"] = "test"
-    with pytest.raises(InvalidSegmentIndex):
+    with pytest.raises(InvalidHl7FieldReference):
         m["PID--1"]
-    with pytest.raises(InvalidSegmentIndex):
+    with pytest.raises(InvalidHl7FieldReference):
         m["PID--1"] = "test"
+    with pytest.raises(InvalidHl7FieldReference):
+        m["PID-"] = "test"
+    with pytest.raises(InvalidHl7FieldReference):
+        m["PID-1["] = "test"
+    with pytest.raises(InvalidHl7FieldReference):
+        m["PID-1[1]."] = "test"
+    with pytest.raises(InvalidHl7FieldReference):
+        m["PID-1[1].1."] = "test"
 
 
 def test_format_message(trivial_a08: bytes) -> None:
@@ -124,13 +133,76 @@ def test_invalid_segment(trivial_a08: bytes) -> None:
     m = p2.parse_message(message=bad_a08)
     assert p2.format_message(m, encoding="ascii") == trivial_a08
 
+
 def test_add_segment(trivial_a08: bytes) -> None:
     p = Hl7Parser()
     m = p.parse_message(trivial_a08)
-    pv1 = Hl7Segment(p)
+    pv1 = Hl7Segment()
     pv1.parse('PV1|')
+    assert str(pv1) == 'PV1|'
     m.segments.append(pv1)
     m['PV1-5'] = 'test'
     assert m['PV1-5'] == 'test', "Failed to allocate missing fields"
     m['PV1-9[3].2'] = 'blue'
     assert m['PV1-9'] == '~~^blue'
+
+
+def test_segment() -> None:
+    s = Hl7Segment()
+    s.parse('PID|1|2|3')
+    with pytest.raises(InvalidSegmentIndex):
+        s[0] = '1'
+
+
+def test_indexing(trivial_a08: bytes) -> None:
+    p = Hl7Parser()
+    m = p.parse_message(trivial_a08)
+
+    with pytest.raises(InvalidHl7FieldReference):
+        m['PID-0'] = 'test'
+    
+    with pytest.raises(InvalidHl7FieldReference):
+        m['PID-1[0]'] = 'test'
+    
+    with pytest.raises(InvalidHl7FieldReference):
+        m['PID-1.0'] = 'test'
+    
+    with pytest.raises(InvalidHl7FieldReference):
+        m['PID-1.1.0'] = 'test'
+
+
+def test_reference() -> None:
+    r = Hl7Reference()
+    with pytest.raises(InvalidHl7FieldReference):
+        r.parse_definition('PID')
+
+    with pytest.raises(InvalidHl7FieldReference):
+        r.parse_definition('PIDD')
+        
+    with pytest.raises(InvalidHl7FieldReference):
+        r.parse_definition('PID-0')
+        
+    with pytest.raises(InvalidHl7FieldReference):
+        r.parse_definition('PID-1[0]')
+        
+    with pytest.raises(InvalidHl7FieldReference):
+        r.parse_definition('PID-1[1].0')
+        
+    with pytest.raises(InvalidHl7FieldReference):
+        r.parse_definition('PID-1[1].1.0')
+
+
+def test_implicit_message_parser(trivial_a08: bytes) -> None:
+    m = Hl7Message()
+    m.parse(trivial_a08)
+    assert str(m) == trivial_a08.decode('ascii')
+
+
+def test_newline_as_terminator(trivial_a08: bytes) -> None:
+    p = Hl7Parser(newline_as_terminator=True)
+    nl_a08 = trivial_a08.replace(b'\r', b'\n')
+    m = p.parse_message(nl_a08)
+    assert p.format_message(m, encoding='ascii') == trivial_a08
+    crlf_a08 = trivial_a08.replace(b'\r\n', b'\n')
+    m2 = p.parse_message(crlf_a08)
+    assert p.format_message(m2, encoding='ascii') == trivial_a08
