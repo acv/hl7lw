@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import call
+import src.hl7lw.mllp
 from src.hl7lw.mllp import MllpClient, MllpServer, START_BYTE, END_BYTES
 from src.hl7lw.exceptions import MllpConnectionError
 
@@ -73,6 +74,21 @@ def test_get_message_exception(mocker, trivial_a08: bytes) -> None:
 def test_get_message_no_connected(mocker) -> None:
     c = MllpClient()
     with pytest.raises(MllpConnectionError, match=r'^Not connected!'):
+        c.recv()
+
+
+def test_get_message_too_big(mocker) -> None:
+    c = MllpClient()
+    mock_socket = mocker.patch('socket.socket')
+    junk = [START_BYTE]
+    l = b"A" * 1024
+    for i in range(1100):
+        # 1.1MB of junk.
+        junk.append(l)
+    mock_socket.recv.side_effect = junk
+    mocker.patch("socket.create_connection", return_value=mock_socket)
+    c.connect(host='test', port=1234)
+    with pytest.raises(MllpConnectionError, match=r'^Maximum messages size.*'):
         c.recv()
 
 

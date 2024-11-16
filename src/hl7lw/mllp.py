@@ -7,6 +7,7 @@ from .exceptions import MllpConnectionError
 START_BYTE = b'\x0B'
 END_BYTES = b'\x1C\x0D'
 BUFSIZE = 4096
+MAX_MESSAGE_SIZE = 1 * 1024 * 1024  # 1 MB is probably reasonable.
 
 
 class MllpClient:
@@ -69,6 +70,7 @@ class MllpClient:
         self.buffer = b''
         while True:
             try:
+                # This is slow for very large messages.
                 buffer += self.socket.recv(BUFSIZE)
             except Exception as e:
                 self.connected = False
@@ -76,14 +78,20 @@ class MllpClient:
                 raise MllpConnectionError("Failed to read from socket, closing it.") from e
             start = buffer.find(START_BYTE)
             if start == -1:
+                # This only happens if buffer is only junk, so get rid of it to minimize
+                # memory footprint.
                 buffer = b''
-            else:
+            elif start > 0:
+                # START_BYTE at index 0 is expected normal when message is split
                 buffer = buffer[start:]
             end = buffer.find(END_BYTES)
             if end != -1:
                 message = buffer[:end]
                 self.buffer = buffer[end:]
                 return message[1:]  # Discard leading START_BYTE
+            if len(buffer) > MAX_MESSAGE_SIZE:
+                buffer = b''
+                raise MllpConnectionError(f"Maximum messages size {MAX_MESSAGE_SIZE} exceeded!")
 
 
 class MllpServer:
