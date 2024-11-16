@@ -316,6 +316,26 @@ class Hl7Message:
 
 
 class Hl7Parser:
+    """
+    Hl7Parser implements the encoding/decoding logic for Hl7 messages.
+
+    The `parse_message()` method will extract the encoding characters from the
+    MSH segment using the `sniff_out_grammar_from_msh_definition()` method. This
+    can be disabled with the `ignore_msh_values_for_parsing` constructor option.
+
+    There's a few other constructor options to relax the parser and allow some
+    common and/or convenient deviations from the spec.
+
+    Sample usage:
+
+    ```
+    p = Hl7Parser()
+    m = p.parse_message(message=message_bytes, encoding="ascii")
+    
+    m_b = p.format_message(message=m, encoding="ascii")
+    ```
+
+    """
     def __init__(self,
                  newline_as_terminator: bool = False,
                  ignore_invalid_segments: bool = False,
@@ -323,9 +343,40 @@ class Hl7Parser:
                  ignore_msh_values_for_parsing: bool = False,
                  allow_multiple_msh: bool = False) -> None:
         """
+        All arguments are optional and used to alter how strict the parser
+        behaviour will be.
+
+        All options, default to disabled.
+
+        Options:
+
+        `newline_as_terminator` -- Newlines (`\n`) and Windows new lines (`\r\n`) will
+                                   be treated as segment terminator, just like carriage
+                                   returns (`\r`)
+
+        `ignore_invalid_segments` -- Invalid segments will be discarded silently. Validity
+                                     is not based on the segment being in the spec, just
+                                     syntax rules.
+        
+        `allow_unterminated_last_segment` -- Support messages where the last segment is not
+                                             followed by a segment terminator (`\r`).
+        
+        `ignore_msh_values_for_parsing` -- Do not use MSH-1 and MSH-2 to identify the encoding
+                                           characters.
+        
+        `allow_multiple_msh` -- Treat any MSH segments after the first one as if they were an
+                                ordinary segment instead of raising an exception.
+        
+        The default control characters are per the spec:
+
+        `segment_separator`:      `\r`
+        `field_separator`:        `|`
+        `component_separator`:    `^`
+        `repetition_separator`:   `~`
+        `escape_character`:       `\`
+        `subcomponent_separator`: `&`
 
         """
-        
         # Grammar defaults
         self.segment_separator: str = '\r'
         self.field_separator: str = '|'
@@ -334,7 +385,7 @@ class Hl7Parser:
         self.escape_character: str = '\\'
         self.subcomponent_separator: str = '&'
 
-        # Parsing options/
+        # Parsing options
         self.newline_as_terminator = newline_as_terminator
         self.ignore_invalid_segments = ignore_invalid_segments
         self.allow_unterminated_last_segment = allow_unterminated_last_segment
@@ -344,6 +395,24 @@ class Hl7Parser:
     def parse_message(self,
                       message: Union[bytes, str],
                       encoding: Optional[str] = 'ascii') -> Hl7Message:
+        """
+        Parse a `message` which can either be a `str` or a `bytes`. If the
+        `message` is a `bytes` then then `encoding` option will be used to
+        `decode` it into a `str` first. The default value of `encoding` is
+        "ascii". The possibly encodings are all the encodings supported by
+        the python interpreter.
+
+        Any parsing error will cause the method to raise an Exception, all
+        of which will be a subclass of `Hl7Exception`. The constructor
+        options can be used to lower the strictness of the parser if
+        necessary.
+
+        Note specifically that by default MSH-1 and MSH-2 will be used to
+        set the parser control character and in the case of invalid MSH-2
+        specifically, you may get very strange results. This behaviour can
+        be disabled with the `ignore_msh_values_for_parsing` constructor
+        option.
+        """
         if isinstance(message, bytes):
             message = message.decode(encoding=encoding)
         hl7_msg = Hl7Message(parser=self)
@@ -376,6 +445,17 @@ class Hl7Parser:
                       segment: Union[bytes, str],
                       allow_msh: Optional[bool] = True,
                       encoding: Optional[str] = 'ascii') -> Hl7Segment:
+        """
+        Parse a single `segment` into an `Hl7Segment` objector. MSH segments
+        will only be parsed if the `allow_msh` option is `True`, which is the
+        default. If `segment` is a `bytes` instead of a `str`, it will be
+        decoded into a str using the value provided for `encoding`. If no
+        encoding is supplied, "ascii" will be used.
+
+        This method is primarily used by the `parse_message()` method but it
+        can also be used to create an `Hl7Segment` object from a string
+        representation.
+        """
         if isinstance(segment, bytes):
             segment = segment.decode(encoding=encoding)
         if len(segment) < 4:
@@ -397,6 +477,17 @@ class Hl7Parser:
         return hl7_seg
     
     def sniff_out_grammar_from_msh_definition(self, segment: str) -> None:
+        """
+        This method extracts the control character definition from an MSH segment
+        and updates this parser instance with them.
+
+        If the segment is not an MSH segment or is too short, the method will
+        raise an `InvalidSegment` exception.
+
+        There is normally no need for application code to use this method.
+        """
+        if not segment.startswith('MSH'):
+            raise InvalidSegment("An MSH segment is required, not {segment[:3]}")
         field_separator = segment[3]  # Local var in case rest of MSH invalid
         _, control_characters, _ = segment.split(field_separator, maxsplit=2)
         if len(control_characters) != 4:
@@ -408,6 +499,9 @@ class Hl7Parser:
         self.subcomponent_separator = control_characters[3]
     
     def format_segment(self, segment: Hl7Segment) -> str:
+        """
+        Returns the encoded `str` representation of the supplied `Hl7Segment`.
+        """
         fields = segment.fields[:]  # shallow copy
         if segment.name == 'MSH':
             del fields[0]
@@ -417,6 +511,14 @@ class Hl7Parser:
     def format_message(self,
                        message: Hl7Message, 
                        encoding: Optional[str] = None) -> Union[str, bytes]:
+        """
+        Returns the encoded representation of the supplied `Hl7Message` object.
+
+        If the `encoding` parameter is supplied, the result will be a `bytes`
+        representation and the `encoding` will be used. If the `encoding` is
+        not specified, a `str` representation will be returned and the caller
+        is responsible to encode to `bytes` if necessary.
+        """
         formatted_segments = []
         for segment in message.segments:
             formatted_segments.append(self.format_segment(segment))
