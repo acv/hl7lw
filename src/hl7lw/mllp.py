@@ -16,7 +16,15 @@ class MllpClient:
         self.host: Optional[str] = None
         self.port: Optional[int] = None
         self.buffer: bytes = b''
-    
+
+    def close(self):
+        if self.connected:
+            self.connected = False
+            self.buffer = b''
+            self.socket.close()
+        else:
+            raise MllpConnectionError("Not connected!")
+
     def connect(self, host: str, port: int) -> None:
         self.host = host
         self.port = port
@@ -47,29 +55,30 @@ class MllpClient:
             self.socket.close()
             self.connected = False
             self.buffer = b''
-            raise e
+            raise MllpConnectionError("Failed to send message to client.") from e
     
     def recv(self) -> bytes:
+        if not self.connected:
+            # No point in connecting. Clients aren't normally polling in MLLP.
+            # Maybe if asynch ACKs are used? But this client implementation really
+            # isn't that smart.
+            raise MllpConnectionError("Not connected!")
+        # self.buffer is for any excess bytes after last message. A busy sender that
+        # does not expect ack can send messages fast enough they run into each other.
         buffer = self.buffer
-        start = buffer.find(START_BYTE)
-        if start != -1:
-            buffer = buffer[start:]
-        else:
-            buffer = b''
+        self.buffer = b''
         while True:
             try:
                 buffer += self.socket.recv(BUFSIZE)
             except Exception as e:
-                self.buffer = b''
                 self.connected = False
                 self.socket.close()
-                raise e
+                raise MllpConnectionError("Failed to read from socket, closing it.") from e
+            start = buffer.find(START_BYTE)
             if start == -1:
-                start = buffer.find(START_BYTE)
-                if start == -1:
-                    buffer = b''
-                else:
-                    buffer = buffer[start:]
+                buffer = b''
+            else:
+                buffer = buffer[start:]
             end = buffer.find(END_BYTES)
             if end != -1:
                 message = buffer[:end]
