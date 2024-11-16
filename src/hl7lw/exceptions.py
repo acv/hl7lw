@@ -24,3 +24,11 @@ class InvalidHl7FieldReference(Hl7Exception):
 
 class SegmentNotFound(Hl7Exception):
     pass
+
+
+class MllpException(Exception):
+    pass
+
+
+class MllpConnectionError(MllpException):
+    pass
