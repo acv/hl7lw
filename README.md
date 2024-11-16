@@ -21,4 +21,13 @@ message_bytes = p.format_message(m)
 
 report = "\n".join([obx[5] for obx in m.get_segments('OBX') if obx[2] in ('TX', 'FT', 'ST')])
 
+c = hl7lw.MllpClient()
+c.connect(host="127.0.0.1", port="1234")
+c.send(message_bytes)
+ack_bytes = c.recv()
+c.close()
+
+ack_m = p.parse_message(ack_bytes)
+assert ack_m["MSA-1.1"] == "AA"
+
 ```
