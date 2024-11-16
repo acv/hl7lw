@@ -29,5 +29,6 @@ c.close()
 
 ack_m = p.parse_message(ack_bytes)
 assert ack_m["MSA-1.1"] == "AA"
+assert m["MSH-10"] == ack_m["MSA-2"]
 
 ```
