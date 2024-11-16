@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Union, Optional
+from typing import Union, Optional, Iterable
 import re
 
 from .exceptions import *
@@ -281,18 +281,74 @@ class Hl7Segment:
 
 
 class Hl7Message:
+    """
+    Hl7 message as an object.
+
+    The list of segments can be accessed directly as the `segments` instance variable.
+
+    An `Hl7Message` instance can be iterated and will iterate over the `segments` list
+    when doing so.
+
+    Using `builtins.str()` on an `Hl7Message` will return a string representation of the
+    message encoded using the `Hl7Parser` instance that was used to parse the message
+    in the first place or if none was provided, using a new default instance.
+
+    The `Hl7Message` class can subscribed like a `dict` using `Hl7Reference` syntax and
+    referenced value will be either returned or set.
+
+    Examples:
+
+    ```
+    m = Hl7Message()
+    m.parse(".... a message ....")
+    
+    # Change message type
+    if m["MSH-9.1"] == "ORM":
+        m["MSH-9"] = "ORU^R01"
+
+    # Remove the PV1 segment
+    segments = []
+    for seg in m:
+        if seg.name != 'PV1':
+            segments.append(seg)
+    m.segments = segments
+            
+    ```
+    """
     def __init__(self, parser: Optional[Hl7Parser] = None) -> None:
+        """
+        Creates an empty message. An optional `parser` argument can be supplied to configured
+        a custom `Hl7Parser` for use by the `parse()` method and the `__str__()` method.
+
+        The `segments` instance variable hold the list of segments in the message.
+        """
         self.parser = parser
         if self.parser is None:
             self.parser = Hl7Parser()
         self.segments: list[Hl7Segment] = []
 
     def parse(self, message: str) -> None:
+        """
+        Parse a `str` (not `bytes`!) representation of a message into this `Hl7Message`
+        instance using the embedded `Hl7Parser` instance. See the documentation of
+        `Hl7Pasrser.parse_message()` for details.
+
+        All segments will be replaced with those of the parsed message.
+        """
         tmp_msg = self.parser.parse_message(message)
         self.segments = tmp_msg.segments
     
     def get_segment(self, segment: str,
                     strict: bool = True) -> Optional[Hl7Segment]:
+        """
+        Return the segment matching the name provided as the `segment` argument.
+
+        If `strict` is `True` (default) and there are multiple segments matching
+        the specified name, a `MultipleSegmentsFound` exception will be raised.
+        If `strict` is `False` the first matching segment will be returned.
+
+        If the segment is not found, `None` will be returned.
+        """
         segments = self.get_segments(segment)
         if len(segments) > 0:
             if strict and len(segments) > 1:
@@ -303,6 +359,18 @@ class Hl7Message:
             return None
     
     def get_segments(self, segment: str) -> list[Hl7Segment]:
+        """
+        Returns a list containing all the segments matching the name
+        provided in the `segment` attribute. The order of the segments
+        in the message will be preserved but that does not mean the
+        segments in the returned list where one after the other. This
+        can be a problem when dealing with complex messages that may have
+        multiple groups of OBX segments with different meanings based on
+        their position in the message. The caller is responsible to know
+        what they are doing.
+
+        If no segment is found, an empty list is returned.
+        """
         return [s for s in self.segments if s.name == segment]
     
     def __getitem__(self, key: str) -> str:
@@ -313,6 +381,9 @@ class Hl7Message:
     
     def __str__(self) -> str:
         return self.parser.format_message(self)
+
+    def __iter__(self) -> Iterable:
+        return self.segments.__iter__()
 
 
 class Hl7Parser:

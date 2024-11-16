@@ -9,6 +9,11 @@ def test_a08_parsing(trivial_a08: bytes) -> None:
     m = p.parse_message(message=trivial_a08)
     assert isinstance(m, Hl7Message)
     assert len(m.segments) == 3
+    expected = set(('MSH', 'EVN', 'PID'))
+    actual = set()
+    for seg in m:
+        actual.add(seg.name)
+    assert expected == actual
 
 
 def test_segments(trivial_a08: bytes) -> None:
