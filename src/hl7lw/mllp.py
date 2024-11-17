@@ -217,23 +217,24 @@ class MllpServer:
         the callback processes. There is absolutely no concurrency in play.
         """
         server_sock = socket.create_server(('', self.port))
-        clients: list[socket.socket] = []
+        server_sock.setblocking(False)
+        clients: dict[socket.socket, tuple[str, int]] = {}
         read_buffers: dict[socket.socket, bytes] = {}
         write_buffers: dict[socket.socket, bytes] = {}
+        client_socks = [server_sock]
         while True:
-            client_socks = clients.keys()
-            client_socks.append(server_sock)
-            ready_r, ready_w, _ = select.select(client_socks, write_buffers.keys(), [])
+            ready_r, ready_w, _ = select.select(client_socks, write_buffers.keys(), [], 0.1)
             
             for sock in ready_w:
                 if sock in write_buffers:
                     buf = write_buffers[sock]
                     try:
-                        count = sock.write(buf)
+                        count = sock.send(buf)
                     except OSError:
                         del clients[sock]
                         del read_buffers[sock]
                         del write_buffers[sock]
+                        client_socks.remove(sock)
                         sock.shutdown(socket.SHUT_RDWR)
                         sock.close()
                         continue
@@ -247,15 +248,18 @@ class MllpServer:
                 if sock == server_sock:
                     conn, addr = sock.accept()
                     clients[conn] = addr
+                    client_socks.append(conn)
                     read_buffers[conn] = b''
+                    conn.setblocking(False)
                 elif sock in read_buffers:
                     buf = read_buffers[sock]
                     try:
-                        buf += sock.read()
+                        buf += sock.recv(BUFSIZE)
                     except OSError:
                         del clients[sock]
                         del read_buffers[sock]
                         del write_buffers[sock]
+                        client_socks.remove(sock)
                         sock.shutdown(socket.SHUT_RDWR)
                         sock.close()
                         continue
@@ -277,3 +281,4 @@ class MllpServer:
                             if sock not in write_buffers:
                                 write_buffers[sock] = b''
                             write_buffers[sock] += START_BYTE + ack + END_BYTES
+
