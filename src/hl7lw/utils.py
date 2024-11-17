@@ -381,7 +381,7 @@ class OrmBuilder:
         msh[3] = self.sending_application
         msh[4] = self.sending_facility
         msh[5] = self.receiving_application
-        msh[6] = self.sending_facility
+        msh[6] = self.receiving_facility
         msh[7] = generate_message_time()
         msh[9] = 'ORM^O01'
         msh[10] = generate_message_id()
