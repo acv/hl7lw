@@ -223,7 +223,7 @@ class MllpServer:
         while True:
             client_socks = clients.keys()
             client_socks.append(server_sock)
-            ready_r, ready_w, ready_x = select.select(client_socks, write_buffers.keys(), [])
+            ready_r, ready_w, _ = select.select(client_socks, write_buffers.keys(), [])
             
             for sock in ready_w:
                 if sock in write_buffers:
