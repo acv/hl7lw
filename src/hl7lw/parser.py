@@ -512,16 +512,16 @@ class Hl7Parser:
 
         Options:
 
-        `newline_as_terminator` -- Newlines (`\n`) and Windows new lines (`\r\n`) will
+        `newline_as_terminator` -- Newlines (`\\n`) and Windows new lines (`\\r\\n`) will
                                    be treated as segment terminator, just like carriage
-                                   returns (`\r`)
+                                   returns (`\\r`)
 
         `ignore_invalid_segments` -- Invalid segments will be discarded silently. Validity
                                      is not based on the segment being in the spec, just
                                      syntax rules.
         
         `allow_unterminated_last_segment` -- Support messages where the last segment is not
-                                             followed by a segment terminator (`\r`).
+                                             followed by a segment terminator (`\\r`).
         
         `ignore_msh_values_for_parsing` -- Do not use MSH-1 and MSH-2 to identify the encoding
                                            characters.
@@ -531,11 +531,11 @@ class Hl7Parser:
         
         The default control characters are per the spec:
 
-        `segment_separator`:      `\r`
+        `segment_separator`:      `\\r`
         `field_separator`:        `|`
         `component_separator`:    `^`
         `repetition_separator`:   `~`
-        `escape_character`:       `\`
+        `escape_character`:       `\\`
         `subcomponent_separator`: `&`
 
         """
