@@ -23,11 +23,13 @@ class MllpClient:
 
     The basic usage goes like:
 
+    ```
     c = MllpClient()
     c.connect(host="127.0.0.1", port=1234)
     c.send(message)
     ack = c.recv()
     c.close()
+    ```
 
     """
     def __init__(self) -> None:
