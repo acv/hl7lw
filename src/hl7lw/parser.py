@@ -182,7 +182,28 @@ SEGMENT_ID_RE = re.compile(r'^[A-Z][A-Z0-9]{2}$')
 
 
 class Hl7Reference:
+    """
+    This class holds a reference to an element in a message, It is primarly used
+    indirectly via `Hl7Message`'s subcription interface and not directly.
+
+    The possible reference syntax is:
+
+    Segment-Field[Repetition].Component.Subcomponent
+
+    Only Segment and Field are required. Repetition is always optional and rep 1 is
+    implicit for components and below.
+    
+    This is bet explained via examples:
+
+    `PID-3`         Field 1 of the PID segment. All repetitions included!
+    `PID-3[1]`      First repetition of PID-1
+    `PID-3.1`       First component of PID-1's first repetition (implicitly `PID-3[1].1`)
+    `PID-3[1].4.2`  Second subcomponent of the 4th component of the first rep of PID-3.
+    """
     def __init__(self, definition: Optional[str] = None) -> None:
+        """
+        Convert the `definition` `str` into the instance properties.
+        """
         self.segment_name: Optional[str] = None
         self.field: Optional[int] = None
         self.repetition: Optional[int] = None
@@ -192,6 +213,11 @@ class Hl7Reference:
             self.parse_definition(definition)
     
     def parse_definition(self, definition: str) -> None:
+        """
+        Convert the `definition` `str` into the instance properties.
+
+        Almost always used via the constructor.
+        """
         try:
             segment_name, rest_of_def = definition.split('-', maxsplit=1)
         except ValueError:
@@ -245,7 +271,43 @@ class Hl7Reference:
 
     
 class Hl7Segment:
+    """
+    Hl7 segment as an object.
+
+    Like `Hl7Message` this class embeds an `Hl7Parser` instance to use for parsing
+    textual representation of a segment to replace the content of the instance as
+    well as to format itself when `builtins.str()` is used on the instance.
+
+    The main way in which a segment class is interacted with is via the subcription
+    interface. Fields can be accessed directly via their numerical index, starting
+    at 1, such as in this example:
+
+    ```
+    s = Hl7Segment()
+    s.parse("OBX|1|TX|||Report for blah||||||F|")
+    if obx[2] == 'TX':
+        obx[3] = 'FT'
+    if obx[16] == '':
+        obx[16] = "^Observer^Responsible"
+    ```
+
+    Note in the sample above that the segment does not have 16 fields, yet there's
+    both a read and a write to the 16th field. The `Hl7Segment` instance will
+    silently extend the segment to accomodate missing fields. There's no limit to
+    this. Caveat Emptor.
+
+    The `name` instance variable holds the segment name and is considered public.
+    """
     def __init__(self, parser: Optional[Hl7Parser] = None) -> None:
+        """
+        Creates an empty segment. An optional `parser` argument can be supplied to configured
+        a custom `Hl7Parser` for use by the `parse()` method and the `__str__()` method.
+
+        The `name` instance variable holds the name of the segment.
+
+        The `fields` instance variable holds the other fields, but avoid using it directly
+        and instead use the subscript interface.
+        """
         self.parser = parser
         if self.parser is None:
             self.parser = Hl7Parser()
@@ -253,6 +315,12 @@ class Hl7Segment:
         self.fields: list[str] = []  # 0 indexed, usually don't touch.
     
     def parse(self, segment: str) -> None:
+        """
+        Parse a `str` (not `bytes`!) representation of a segment into this `Hl7Segment`
+        instance using the embedded `Hl7Parser` instance.
+
+        All fields will be replaced with those of the parsed segment.
+        """
         tmp_seg = self.parser.parse_segment(segment)
         self.name = tmp_seg.name
         self.fields = tmp_seg.fields
@@ -331,7 +399,7 @@ class Hl7Message:
         """
         Parse a `str` (not `bytes`!) representation of a message into this `Hl7Message`
         instance using the embedded `Hl7Parser` instance. See the documentation of
-        `Hl7Pasrser.parse_message()` for details.
+        `Hl7Parser.parse_message()` for details.
 
         All segments will be replaced with those of the parsed message.
         """
