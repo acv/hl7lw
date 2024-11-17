@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Optional
 import datetime
 import random
-from .parser import Hl7Parser, Hl7Message, Hl7Segment
+from .parser import Hl7Message, Hl7Segment
 
 
 class Acks(Enum):

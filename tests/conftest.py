@@ -14,3 +14,8 @@ def get_message_from_file(filename):
 @pytest.fixture
 def trivial_a08():
     return get_message_from_file('trivial_a08.hl7')
+
+
+@pytest.fixture
+def expected_ack():
+    return get_message_from_file('expected_ack.hl7')
