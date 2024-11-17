@@ -222,21 +222,9 @@ class MllpServer:
         write_buffers: dict[socket.socket, bytes] = {}
         while True:
             client_socks = clients.keys()
-            all_sock = [server_sock] + client_socks
-            ready_r, ready_w, ready_x = select.select(client_socks, write_buffers.keys(), [server_sock])
+            client_socks.append(server_sock)
+            ready_r, ready_w, ready_x = select.select(client_socks, write_buffers.keys(), [])
             
-            for sock in ready_x:
-                if sock in clients:
-                    del clients[sock]
-                    del read_buffers[sock]
-                    del write_buffers[sock]
-                    sock.shutdown(socket.SHUT_RDWR)
-                    sock.close()
-                else:
-                    conn, addr = sock.accept()
-                    clients[conn] = addr
-                    read_buffers[conn] = b''
-
             for sock in ready_w:
                 if sock in write_buffers:
                     buf = write_buffers[sock]
@@ -256,7 +244,11 @@ class MllpServer:
                         del write_buffers[sock]
             
             for sock in ready_r:
-                if sock in read_buffers:
+                if sock == server_sock:
+                    conn, addr = sock.accept()
+                    clients[conn] = addr
+                    read_buffers[conn] = b''
+                elif sock in read_buffers:
                     buf = read_buffers[sock]
                     try:
                         buf += sock.read()
