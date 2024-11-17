@@ -8,6 +8,11 @@ API to read, modify, and write HL7 2.x messages. Minimal processing is
 done to the messages and most data access should feel very natural and
 pythonic.
 
+The library also includes an MLLP implementation for both client and
+server.
+
+All objects have docstrings.
+
 ```Python
 import hl7lw
 
