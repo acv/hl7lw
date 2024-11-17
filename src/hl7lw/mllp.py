@@ -217,41 +217,71 @@ class MllpServer:
         the callback processes. There is absolutely no concurrency in play.
         """
         server_sock = socket.create_server(('', self.port))
-        client_socks: list[socket.socket] = []
+        clients: list[socket.socket] = []
         read_buffers: dict[socket.socket, bytes] = {}
         write_buffers: dict[socket.socket, bytes] = {}
         while True:
+            client_socks = clients.keys()
+            all_sock = [server_sock] + client_socks
             ready_r, ready_w, ready_x = select.select(client_socks, write_buffers.keys(), [server_sock])
+            
             for sock in ready_x:
-                conn, _ = sock.accept()
-                client_socks.append(conn)
-                read_buffers[conn] = b''
-            for sock in ready_w:
-                buf = write_buffers[sock]
-                count = sock.write(buf)
-                buf = buf[count:]
-                if len(buf) > 0:
-                    write_buffers[sock] = buf
-                else:
+                if sock in clients:
+                    del clients[sock]
+                    del read_buffers[sock]
                     del write_buffers[sock]
-            for sock in ready_r:
-                buf = read_buffers[sock]
-                buf += sock.read()
-                index = buf.find(START_BYTE)
-                if index == -1:
-                    buf = b''
+                    sock.shutdown(socket.SHUT_RDWR)
+                    sock.close()
                 else:
-                    buf = buf[index:]
-                index = buf.find(END_BYTES)
-                message = None
-                if index != -1:
-                    message = buf[1:index]
-                    buf = buf[index:]
-                read_buffers[sock] = buf
-                # We got a message! Process it.
-                if message is not None:
-                    ack = self.callback(message)
-                    if ack is not None:
-                        if sock not in write_buffers:
-                            write_buffers[sock] = b''
-                        write_buffers[sock] += START_BYTE + ack + END_BYTES
+                    conn, addr = sock.accept()
+                    clients[conn] = addr
+                    read_buffers[conn] = b''
+
+            for sock in ready_w:
+                if sock in write_buffers:
+                    buf = write_buffers[sock]
+                    try:
+                        count = sock.write(buf)
+                    except OSError:
+                        del clients[sock]
+                        del read_buffers[sock]
+                        del write_buffers[sock]
+                        sock.shutdown(socket.SHUT_RDWR)
+                        sock.close()
+                        continue
+                    buf = buf[count:]
+                    if len(buf) > 0:
+                        write_buffers[sock] = buf
+                    else:
+                        del write_buffers[sock]
+            
+            for sock in ready_r:
+                if sock in read_buffers:
+                    buf = read_buffers[sock]
+                    try:
+                        buf += sock.read()
+                    except OSError:
+                        del clients[sock]
+                        del read_buffers[sock]
+                        del write_buffers[sock]
+                        sock.shutdown(socket.SHUT_RDWR)
+                        sock.close()
+                        continue
+                    index = buf.find(START_BYTE)
+                    if index == -1:
+                        buf = b''
+                    else:
+                        buf = buf[index:]
+                    index = buf.find(END_BYTES)
+                    message = None
+                    if index != -1:
+                        message = buf[1:index]
+                        buf = buf[index:]
+                    read_buffers[sock] = buf
+                    # We got a message! Process it.
+                    if message is not None:
+                        ack = self.callback(message)
+                        if ack is not None:
+                            if sock not in write_buffers:
+                                write_buffers[sock] = b''
+                            write_buffers[sock] += START_BYTE + ack + END_BYTES
