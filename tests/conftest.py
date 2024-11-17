@@ -19,3 +19,13 @@ def trivial_a08():
 @pytest.fixture
 def expected_ack():
     return get_message_from_file('expected_ack.hl7')
+
+
+@pytest.fixture
+def empty_orm():
+    return get_message_from_file('empty_orm.hl7')
+
+
+@pytest.fixture
+def full_orm():
+    return get_message_from_file('full_orm.hl7')

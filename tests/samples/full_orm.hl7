@@ -1,0 +1,7 @@
+MSH|^~\&|sa|sf|ra|sf|20240712150603||ORM^O01|20240712150603999999|T|2.4||||||||||
+PID|||1234~456^^^EPIC||Smith^John^Q||18911230|M
+PV1||E|EMERG^^^Medical Center|||||1234567^Referring^Doctor|||||||||||12345||||||||||||||||||||||||||||||||V
+ORC|XO|P1234|F1234||IP||^^^202411171456^202411171611^R|||||12345^Ordering^Provider|||202411171456||MCH^Medical Center
+OBR|1|P1234|F1234|8102^Lung|R|202411171456|202411171456|202411171611||||||||12345^Ordering^Provider||A1234|RP123401|||||CR|||^^^202411171456^202411171611^R||||^Patient swallowed a whole tuna can|||||202411171456||||||||8102
+ORC|XO|P1234|F1234||IP||^^^202411171456^202411171617^R|||||12345^Ordering^Provider|||202411171456||MCH^Medical Center
+OBR|1|P1234|F1234|8114^Stomach|R|202411171456|202411171456|202411171617||||||||12345^Ordering^Provider||A1234|RP123402|||||CR|||^^^202411171456^202411171617^R||||^Patient swallowed a whole tuna can|||||202411171456||||||||8114
