@@ -1,4 +1,5 @@
 import socket
+import select
 from typing import Optional, Callable
 
 from .exceptions import MllpConnectionError
@@ -174,12 +175,83 @@ class MllpClient:
 
 
 class MllpServer:
-    def __init__(self, port: int, callback: Callable[[bytes], bytes]) -> None:
-        self.portb = port
-        self.read_buffers: dict[socket.socket, bytes] = {}
-        self.write_buffers: dict[socket.socket, bytes] = {}
+    """
+    Simple server class to listen for HL7 messages on the port `port` and call the
+    callback `callback` on every messages. The callback may return `None` or a `bytes`
+    object. If `bytes` are returned, an ack will be sent to the client.
+
+    A trivial callback to create a message sink would look like:
+
+    ```
+    from hl7lw.utils import generate_ack, Acks
+    from hl7lw import Hl7Parser
+    from typing import Optional
+
+    def callback(message: bytes) -> Optional[bytes]:
+        p = Hl7Parser()
+        m = p.parse_message(message)
+        a = generate_ack(m, Acks.AA)
+        return p.format_message(a, encoding="ascii")
+    ```
+
+    NOTE: The callback is responsible to handle all Exceptions it encounters. Any
+    exception that is raised by the callback or not handled by the callback will be
+    allowed to bubble up to the caller of `server_forever()` and as such, will kill
+    the server.
+
+    It is intentional that MllpServer does not do the HL7 parsing as MLLP can be used
+    as transport for non-HL7 messages.
+    """
+    def __init__(self, port: int, callback: Callable[[bytes], Optional[bytes]]) -> None:
+        """
+        Initialize the server configuration, providing both the `port` and the `callback`.
+        """
+        self.port = port
         self.callback = callback
     
-    def serve(self):
+    def serve_forever(self):
+        """
+        Main loop of the server.
+
+        When a message is received, the callback will be called. The server is paused while
+        the callback processes. There is absolutely no concurrency in play.
+        """
+        server_sock = socket.create_server(('', self.port))
+        client_socks: list[socket.socket] = []
+        read_buffers: dict[socket.socket, bytes] = {}
+        write_buffers: dict[socket.socket, bytes] = {}
         while True:
-            pass
+            ready_r, ready_w, ready_x = select.select(client_socks, write_buffers.keys(), [server_sock])
+            for sock in ready_x:
+                conn, _ = sock.accept()
+                client_socks.append(conn)
+                read_buffers[conn] = b''
+            for sock in ready_w:
+                buf = write_buffers[sock]
+                count = sock.write(buf)
+                buf = buf[count:]
+                if len(buf) > 0:
+                    write_buffers[sock] = buf
+                else:
+                    del write_buffers[sock]
+            for sock in ready_r:
+                buf = read_buffers[sock]
+                buf += sock.read()
+                index = buf.find(START_BYTE)
+                if index == -1:
+                    buf = b''
+                else:
+                    buf = buf[index:]
+                index = buf.find(END_BYTES)
+                message = None
+                if index != -1:
+                    message = buf[1:index]
+                    buf = buf[index:]
+                read_buffers[sock] = buf
+                # We got a message! Process it.
+                if message is not None:
+                    ack = self.callback(message)
+                    if ack is not None:
+                        if sock not in write_buffers:
+                            write_buffers[sock] = b''
+                        write_buffers[sock] += START_BYTE + ack + END_BYTES

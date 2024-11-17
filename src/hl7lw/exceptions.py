@@ -32,3 +32,7 @@ class MllpException(Exception):
 
 class MllpConnectionError(MllpException):
     pass
+
+
+class MllpServerError(MllpException):
+    pass
