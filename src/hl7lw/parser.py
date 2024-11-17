@@ -6,6 +6,9 @@ from .exceptions import *
 
 
 class Hl7Component:
+    """
+    This class is used by `Hl7Field` to parse the components of a repetition. 
+    """
     def __init__(self, parser: Hl7Parser, content: Optional[str] = None) -> None:
         self.parser = parser
         self.components = []
@@ -39,6 +42,9 @@ class Hl7Component:
 
 
 class Hl7Subcomponent:
+    """
+    This class is used by `Hl7Field` to parse the subcomponents of a component. 
+    """
     def __init__(self, parser: Hl7Parser, content: Optional[str] = None) -> None:
         self.parser = parser
         self.subcomponents = []
@@ -72,6 +78,23 @@ class Hl7Subcomponent:
 
 
 class Hl7Field:
+    """
+    The `Hl7Field` class is used to parse the content of a field into its constituent
+    repetitions, components and subcombomponents so they can be accessed.
+
+    The primary way this class is used is indirectly as it provides, along with the
+    `Hl7Reference` class the actual implementation for the `Hl7Message` subscription
+    interface. That interface is really a thin layer that is equivalent to:
+
+    ```
+    # value = message_instance["PID-3[1].1"]
+    ref = Hl7Reference("PID-3[1].1")
+    value = Hl7Field.get_by_reference(message_instance, ref)
+
+    # message_instance["PID-3[1].1"] = value
+    Hl7Field.set_by_reference(message_instance, ref, value)
+    ```
+    """
     def __init__(self, parser: Hl7Parser, content: Optional[str] = None) -> None:
         self.parser = parser
         self.repetitions = []
