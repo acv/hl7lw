@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 import datetime
 import random
 from .parser import Hl7Message, Hl7Segment, Hl7Parser, Hl7Field
@@ -81,7 +81,7 @@ class PatientID:
 
 
 class Patient:
-    def __init__(self, patient_ids: list[PatientID], name: str, birthdate: str, sex: str) -> None:
+    def __init__(self, patient_ids: List[PatientID], name: str, birthdate: str, sex: str) -> None:
         self.patient_ids = patient_ids
         self.name = name
         self.birthdate = birthdate
